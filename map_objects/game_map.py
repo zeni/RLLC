@@ -3,6 +3,9 @@ import tcod as libtcod
 from map_objects.rectangle import Rect
 from map_objects.tile import Tile
 from entity import Entity
+from pyo import *
+from components.monster import Monster
+from components.ai import BasicMonster
 
 
 class GameMap:
@@ -16,7 +19,7 @@ class GameMap:
 
         return tiles
 
-    def make_map(self, max_rooms, room_min_size, room_max_size, map_width, map_height, player):
+    def make_map(self, max_rooms, room_min_size, room_max_size, map_width, map_height, player,entities,max_monsters_per_room,s):
         rooms = []
         num_rooms = 0
         for r in range(max_rooms):
@@ -58,7 +61,7 @@ class GameMap:
                         self.create_h_tunnel(prev_x, new_x, new_y)
 
                         # finally, append the new room to the list
-                self.place_entities(new_room, entities, max_monsters_per_room)
+                self.place_entities(new_room, entities, max_monsters_per_room,s)
                 rooms.append(new_room)
                 num_rooms += 1
 
@@ -79,7 +82,7 @@ class GameMap:
             self.tiles[x][y].blocked = False
             self.tiles[x][y].block_sight = False
     
-    def place_entities(self, room, entities, max_monsters_per_room):
+    def place_entities(self, room, entities, max_monsters_per_room,s):
         # Get a random number of monsters
         number_of_monsters = randint(0, max_monsters_per_room)
 
@@ -90,10 +93,15 @@ class GameMap:
 
             if not any([entity for entity in entities if entity.x == x and entity.y == y]):
                 if randint(0, 100) < 80:
-                    monster = Entity(x, y, 'o', libtcod.desaturated_green)
+                    component = Monster(10, 0, 3)
+                    ai_component = BasicMonster()
+                    monster = Entity(x, y, 'o', libtcod.desaturated_green,'Osc',s, type=component, ai=ai_component,blocks=True)
+                    monster.set_sound(Sine(freq=500))
                 else:
-                    monster = Entity(x, y, 'T', libtcod.darker_green)
-
+                    component = Monster(20, 1, 4)
+                    ai_component = BasicMonster()
+                    monster = Entity(x, y, 'S', libtcod.green,'Shriker',s, type=component, ai=ai_component, blocks=True)
+                    monster.set_sound(Sine(freq=2000))
                 entities.append(monster)
 
     def is_blocked(self, x, y):

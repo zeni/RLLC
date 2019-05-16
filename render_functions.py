@@ -8,7 +8,7 @@ Created on Tue May 14 18:00:04 2019
 import tcod as libtcod
 
 
-def render_all(con, panels, entities, game_map, fov, colors):
+def render_all(con, panels, entities, game_map, fov, message_log, mouse, colors):
     if fov.recompute:
         for y in range(game_map.height):
             for x in range(game_map.width):
@@ -35,7 +35,16 @@ def render_all(con, panels, entities, game_map, fov, colors):
         draw_entity(con, entity, fov.map)
     libtcod.console_blit(con, 0, 0, con.width, con.height, 0, 0, 0)
     for panel in panels:
-        panel.draw()
+        panel.draw(message_log,get_names_under_mouse(mouse, entities, fov))
+
+
+def get_names_under_mouse(mouse, entities, fov):
+    (x, y) = (mouse.cx, mouse.cy)
+    names = [entity.name for entity in entities
+             if entity.x == x and entity.y == y and libtcod.map_is_in_fov(fov.map, entity.x, entity.y)]
+    names = ', '.join(names)
+
+    return names.capitalize()
 
 
 def clear_all(con, panels, entities):
