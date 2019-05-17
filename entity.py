@@ -9,11 +9,13 @@ import math
 import tcod as libtcod
 from pyo import *
 
+
 class Entity:
     """
     A generic object to represent players, enemies, items, etc.
     """
-    def __init__(self, x, y, char, color, name, server, blocks=False, type=None, ai=None):
+
+    def __init__(self, x, y, char, color, name, server, blocks=False, type=None, ai=None, item=None, inventory=None):
         self.x = x
         self.y = y
         self.char = char
@@ -21,22 +23,27 @@ class Entity:
         self.name = name
         self.blocks = blocks
         self.ai = ai
-        self.type=type
-        self.sound=None
+        self.type = type
+        self.item = item
+        self.inventory = inventory
         if self.ai:
             self.ai.owner = self
         if self.type:
             self.type.owner = self
+        if self.item:
+            self.item.owner = self
+        if self.inventory:
+            self.inventory.owner = self
 
     def move(self, dx, dy):
         # Move the entity by a given amount
         self.x += dx
         self.y += dy
-    
-    def set_sound(self,sound):
-        self.sound=sound
-        self.sound.mul=.1
-    
+
+    def set_sound(self, sound):
+        self.sound = sound
+        self.sound.mul = .1
+
     def move_towards(self, target_x, target_y, game_map, entities):
         dx = target_x - self.x
         dy = target_y - self.y
@@ -46,9 +53,9 @@ class Entity:
         dy = int(round(dy / distance))
 
         if not (game_map.is_blocked(self.x + dx, self.y + dy) or
-                    get_blocking_entities_at_location(entities, self.x + dx, self.y + dy)):
+                get_blocking_entities_at_location(entities, self.x + dx, self.y + dy)):
             self.move(dx, dy)
-    
+
     def distance_to(self, other):
         dx = other.x - self.x
         dy = other.y - self.y
@@ -70,7 +77,8 @@ class Entity:
         for entity in entities:
             if entity.blocks and entity != self and entity != target:
                 # Set the tile as a wall so it must be navigated around
-                libtcod.map_set_properties(fov, entity.x, entity.y, True, False)
+                libtcod.map_set_properties(
+                    fov, entity.x, entity.y, True, False)
 
         # Allocate a A* path
         # The 1.41 is the normal diagonal cost of moving, it can be set as 0.0 if diagonal moves are prohibited
@@ -96,6 +104,7 @@ class Entity:
 
             # Delete the path to free memory
         libtcod.path_delete(my_path)
+
 
 def get_blocking_entities_at_location(entities, destination_x, destination_y):
     for entity in entities:

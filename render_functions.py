@@ -6,9 +6,10 @@ Created on Tue May 14 18:00:04 2019
 """
 
 import tcod as libtcod
+from game_states import GameStates
+from menus import inventory_menu
 
-
-def render_all(con, panels, entities, game_map, fov, message_log, mouse, colors):
+def render_all(con, panels, entities, player, game_map, fov, message_log, mouse, colors, game_state):
     if fov.recompute:
         for y in range(game_map.height):
             for x in range(game_map.width):
@@ -36,6 +37,9 @@ def render_all(con, panels, entities, game_map, fov, message_log, mouse, colors)
     libtcod.console_blit(con, 0, 0, con.width, con.height, 0, 0, 0)
     for panel in panels:
         panel.draw(message_log,get_names_under_mouse(mouse, entities, fov))
+    if game_state == GameStates.SHOW_INVENTORY:
+        inventory_menu(con, 'Press the key next to an item to use it, or Esc to cancel.\n',
+                       player.inventory, 50, con.width, con.height)
 
 
 def get_names_under_mouse(mouse, entities, fov):

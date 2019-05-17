@@ -10,14 +10,14 @@ class BasicMonster:
         results = []
         monster = self.owner
         if libtcod.map_is_in_fov(fov.map, monster.x, monster.y):
-            if not source.sound.isOutputting():
-                source.sound.out()
+            if not source.type.sound.isOutputting():
+                source.type.sound.out()
             if monster.distance_to(target) >= 2:
                 monster.move_astar(target, entities, game_map)
             elif target.type.hp > 0:
                results.append({'message':Message('The {0} insults you! Your ego is damaged!'.format(monster.name),libtcod.blue)})
         else:
-            if source.sound.isOutputting():
-                source.sound.stop()
+            if source.type.sound.isOutputting():
+                source.type.sound.stop()
         return results
 
