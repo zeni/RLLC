@@ -10,65 +10,53 @@ from game_messages import MessageLog, Message
 from game_states import GameStates
 from components.noiseur import Noiseur
 from components.inventory import Inventory
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, MAP_HEIGHT, MAP_WIDTH
 from pyo import *
 
 
 def main():
-    SCREEN_WIDTH = 100
-    SCREEN_HEIGHT = 80
-    MAP_WIDTH = 85
-    MAP_HEIGHT = 70
-    ROOM_MAX_SIZE = 10
-    ROOM_MIN_SIZE = 6
-    MAX_ROOMS = 30
-    MAX_MONSTERS_ROOM = 3
-    MAX_ITEMS_ROOM = 2
-    FOV_ALGO = 0
-    FOV_LIGHT_WALLS = True
-    FOV_RADIUS = 5
-    colors = {
-        'dark_wall': tcod.Color(0, 0, 100),
-        'dark_ground': tcod.Color(50, 50, 150),
-        'light_wall': tcod.Color(130, 110, 50),
-        'light_ground': tcod.Color(200, 180, 50),
-    }
-    s = Server(duplex=0).boot()
-    s.start()
-    component = Noiseur(hp=30, defense=2, power=5, sound=Noise())
-    inv_component = Inventory(26)
-    player = Entity(0, 0, '@', tcod.white, 'Player', s,
-                    blocks=True, type=component, inventory=inv_component)
-    player.type.sound.out()
+    # start pyo server
+    pyo_server = Server(duplex=0).boot()
+    pyo_server.start()
+    # create player
+    # TODO add different classes
+    player = Entity(0, 0, '@', tcod.white, 'Player',
+                    blocks=True, type=Noiseur(sound=Noise()), inventory=Inventory(20))
+    player.type.sound_out()
     entities = [player]
+    # some initializations, main console
+    # TODO add a spectrum analyser panel ?
     tcod.console_set_custom_font(
         "arial10x10.png", tcod.FONT_TYPE_GREYSCALE | tcod.FONT_LAYOUT_TCOD,)
     tcod.console_init_root(SCREEN_WIDTH, SCREEN_HEIGHT,
                            "RLLC v0.0", renderer=tcod.RENDERER_SDL2, order="F")
     con = tcod.console.Console(SCREEN_WIDTH, SCREEN_HEIGHT)
     con.default_fg = tcod.white
+    game_state = GameStates.PLAYERS_TURN
+    previous_game_state = game_state
+    # create sub-panels
     panels = []
     panel = Panel(0, MAP_HEIGHT, SCREEN_WIDTH,
-                  SCREEN_HEIGHT-MAP_HEIGHT, "panel")
+                  SCREEN_HEIGHT-MAP_HEIGHT, "log")
     panels.append(panel)
     panel = Panel(MAP_WIDTH, 0, SCREEN_WIDTH-MAP_WIDTH, MAP_HEIGHT, "sidebar")
     panels.append(panel)
-    game_map = GameMap(MAP_WIDTH, MAP_HEIGHT)
-    game_map.make_map(MAX_ROOMS, ROOM_MIN_SIZE, ROOM_MAX_SIZE,
-                      MAP_WIDTH, MAP_HEIGHT, player, entities, MAX_MONSTERS_ROOM, MAX_ITEMS_ROOM, s)
-    fov = FOV(game_map, FOV_RADIUS, FOV_LIGHT_WALLS, FOV_ALGO)
-    message_log = MessageLog(2, SCREEN_WIDTH-4, SCREEN_HEIGHT-MAP_HEIGHT)
+    message_log = MessageLog(2, SCREEN_WIDTH-4, SCREEN_HEIGHT-MAP_HEIGHT-2)
+    # create game map and place entities, fov
+    game_map = GameMap()
+    game_map.make_map(player, entities)
+    fov = FOV(game_map)
+    # compute fov
+    fov.recompute_fov(player)
+    # inputs
     key = tcod.Key()
     mouse = tcod.Mouse()
-    game_state = GameStates.PLAYERS_TURN
-    previous_game_state = game_state
+    # main loop
     while not tcod.console_is_window_closed():
+        # get events
         tcod.sys_check_for_event(
             tcod.EVENT_KEY_PRESS | tcod.EVENT_MOUSE, key, mouse)
-        fov.recompute_fov(player)
-        render_all(con, panels, entities, player, game_map,
-                   fov, message_log, mouse, colors, game_state)
-        tcod.console_flush()
-        clear_all(con, panels, entities)
+        # get action from keyboard
         action = handle_keys(key, game_state)
         move = action.get("move")
         pickup = action.get('pickup')
@@ -76,6 +64,7 @@ def main():
         inventory_index = action.get('inventory_index')
         exit = action.get("exit")
         fullscreen = action.get("fullscreen")
+        # deal with actions
         player_turn_results = []
         if move and game_state == GameStates.PLAYERS_TURN:
             dx, dy = move
@@ -91,8 +80,9 @@ def main():
                     player.move(dx, dy)
                     player_turn_results.append(
                         {'message': Message('You moved!', tcod.yellow)})
-                    fov_recompute = True
-                game_state = GameStates.ENEMY_TURN
+                    # compute fov
+                    fov.recompute_fov(player)
+            game_state = GameStates.ENEMY_TURN
         elif pickup and game_state == GameStates.PLAYERS_TURN:
             for entity in entities:
                 if entity.item and entity.x == player.x and entity.y == player.y:
@@ -101,7 +91,7 @@ def main():
                     break
             else:
                 message_log.add_message(
-                    Message('There is nothing here to pick up.', tcod.violet))
+                    Message('There is nothing here to pick up.', tcod.yellow))
         if show_inventory:
             previous_game_state = game_state
             game_state = GameStates.SHOW_INVENTORY
@@ -112,6 +102,7 @@ def main():
             if game_state == GameStates.SHOW_INVENTORY:
                 game_state = previous_game_state
             else:
+                pyo_server.stop()
                 return True
         if fullscreen:
             tcod.console_set_fullscreen(not tcod.console_is_fullscreen())
@@ -137,6 +128,12 @@ def main():
                             message_log.add_message(message)
             else:
                 game_state = GameStates.PLAYERS_TURN
+        # render everything
+        render_all(con, panels, entities, player, game_map,
+                   fov, message_log, game_state)
+        tcod.console_flush()
+        clear_all(con, panels, entities)
+        
 
 
 if __name__ == "__main__":

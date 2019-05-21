@@ -14,16 +14,11 @@ class Panel:
         self.con.default_bg=color
         self.con.default_fg=tcod.white
 
-    def draw(self,message_log,info):
+    def draw(self,message_log):
         tcod.console_set_default_foreground(self.con, tcod.white)
-        tcod.console_clear(self.con)
-        self.con.hline(0,0,self.con.width)
-        self.con.hline(0,self.con.height,self.con.width)
-        self.con.vline(0,0,self.con.height)
-        self.con.vline(self.con.width,0,self.con.height)
-        if self.name=='panel':
-            tcod.console_set_default_foreground(self.con, tcod.light_gray)
-            tcod.console_print_ex(self.con, message_log.x, 0, tcod.BKGND_NONE, tcod.LEFT, info)
+        #tcod.console_clear(self.con)
+        tcod.console_print_frame(self.con,0,0,self.con.width,self.con.height,clear=True,fmt=self.name)
+        if self.name=='log':
             # Print the game messages, one line at a time
             y = 1
             for message in message_log.messages:

@@ -5,15 +5,16 @@ from map_objects.tile import Tile
 from entity import Entity
 from pyo import *
 from components.monster import Monster
-from components.ai import BasicMonster
+from components.ai import FollowMonster, FleeMonster
 from components.item import Item
 from item_functions import add_osc
+from constants import MAX_MONSTERS_ROOM, MAX_ROOMS, MAX_ITEMS_ROOM, ROOM_MIN_SIZE, ROOM_MAX_SIZE, MAP_HEIGHT, MAP_WIDTH
 
 
 class GameMap:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
+    def __init__(self):
+        self.width = MAP_WIDTH
+        self.height = MAP_HEIGHT
         self.tiles = self.initialize_tiles()
 
     def initialize_tiles(self):
@@ -22,17 +23,14 @@ class GameMap:
 
         return tiles
 
-    def make_map(self, max_rooms, room_min_size, room_max_size, map_width, map_height, player, entities, max_monsters_per_room, max_items_per_room, s):
+    def make_map(self, player, entities):
         rooms = []
         num_rooms = 0
-        for r in range(max_rooms):
-            # random width and height
-            w = randint(room_min_size, room_max_size)
-            h = randint(room_min_size, room_max_size)
-            # random position without going out of the boundaries of the map
-            x = randint(0, map_width - w - 1)
-            y = randint(0, map_height - h - 1)
-            # "Rect" class makes rectangles easier to work with
+        for r in range(MAX_ROOMS):
+            w = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+            h = randint(ROOM_MIN_SIZE, ROOM_MAX_SIZE)
+            x = randint(0, MAP_WIDTH - w - 1)
+            y = randint(0, MAP_HEIGHT - h - 1)
             new_room = Rect(x, y, w, h)
             # run through the other rooms and see if they intersect with this one
             for other_room in rooms:
@@ -62,10 +60,8 @@ class GameMap:
                         # first move vertically, then horizontally
                         self.create_v_tunnel(prev_y, new_y, prev_x)
                         self.create_h_tunnel(prev_x, new_x, new_y)
-
                         # finally, append the new room to the list
-                self.place_entities(
-                    new_room, entities, max_monsters_per_room, max_items_per_room, s)
+                self.place_entities(new_room, entities)
                 rooms.append(new_room)
                 num_rooms += 1
 
@@ -86,28 +82,23 @@ class GameMap:
             self.tiles[x][y].blocked = False
             self.tiles[x][y].block_sight = False
 
-    def place_entities(self, room, entities, max_monsters_per_room, max_items_per_room, s):
+    def place_entities(self, room, entities):
         # Get a random number of monsters
-        number_of_monsters = randint(0, max_monsters_per_room)
-        number_of_items = randint(0, max_items_per_room)
-
+        number_of_monsters = randint(0, MAX_MONSTERS_ROOM)
+        number_of_items = randint(0, MAX_ITEMS_ROOM)
         for i in range(number_of_monsters):
             # Choose a random location in the room
             x = randint(room.x1 + 1, room.x2 - 1)
             y = randint(room.y1 + 1, room.y2 - 1)
             if not any([entity for entity in entities if entity.x == x and entity.y == y]):
                 if randint(0, 100) < 80:
-                    component = Monster(10, 0, 3, sound=Sine(freq=randint(500, 1000)))
-                    ai_component = BasicMonster()
+                    component = Monster(sound=Sine(freq=randint(500, 1000)))
                     monster = Entity(x, y, 'o', libtcod.desaturated_green,
-                                     'Osc', s, type=component, ai=ai_component, blocks=True)
-                    #monster.set_sound(Sine(freq=randint(500, 1000)))
+                                     'Osc', type=component, ai=FleeMonster(), blocks=True)
                 else:
-                    component = Monster(20, 1, 4,sound=Sine(freq=randint(2000, 5000)))
-                    ai_component = BasicMonster()
+                    component = Monster(sound=Sine(freq=randint(2000, 5000)))
                     monster = Entity(x, y, 'S', libtcod.green, 'Shriker',
-                                     s, type=component, ai=ai_component, blocks=True)
-                    #monster.set_sound(Sine(freq=randint(2000, 5000)))
+                                     type=component, ai=FollowMonster(), blocks=True)
                 entities.append(monster)
         for i in range(number_of_items):
             x = randint(room.x1 + 1, room.x2 - 1)
@@ -115,11 +106,10 @@ class GameMap:
             if not any([entity for entity in entities if entity.x == x and entity.y == y]):
                 item_component = Item(use_function=add_osc, freq=1500)
                 item = Entity(x, y, '!', libtcod.violet,
-                              'Oscia Potion', s, item=item_component)
+                              'Oscia Potion', item=item_component)
                 entities.append(item)
 
     def is_blocked(self, x, y):
         if self.tiles[x][y].blocked:
             return True
-
         return False
