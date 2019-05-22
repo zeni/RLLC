@@ -15,6 +15,5 @@ class FOV:
                                         not game_map.tiles[x][y].blocked)
 
     def recompute_fov(self, entity):
-        #if self.recompute:
         tcod.map_compute_fov(self.map, entity.x, entity.y,
-                                 self.radius, self.light_walls, self.algo)
+                                self.radius, self.light_walls, self.algo)

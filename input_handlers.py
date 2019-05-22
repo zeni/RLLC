@@ -47,10 +47,20 @@ def handle_inventory_keys(key):
         return {'exit': True}
     return {}
 
+def handle_intro_keys(key):
+    index = key.c - ord('a')
+    if index >= 0:
+        return {'choice': index}
+    return {}
+
 def handle_keys(key, game_state):
     if game_state == GameStates.PLAYERS_TURN:
         return handle_player_turn_keys(key)
     elif game_state == GameStates.SHOW_INVENTORY:
         return handle_inventory_keys(key)
+    elif game_state == GameStates.INTRO_SCREEN:
+        return handle_intro_keys(key)
+    elif game_state == GameStates.CLASS_CHOICE:
+        return handle_intro_keys(key)
 
     return {}

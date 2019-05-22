@@ -6,7 +6,7 @@ class Noiseur:
         self.sound = []
         if sound is not None:
             self.sound.append(sound)
-            self.sound[-1].mul = 0
+            self.sound[-1].mul = .2
 
     def add_osc(self, f):
         self.sound.append(Sine(freq=f))

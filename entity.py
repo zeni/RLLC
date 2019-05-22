@@ -9,13 +9,15 @@ import math
 import tcod as libtcod
 from pyo import *
 
+from render_functions import RenderOrder
+
 
 class Entity:
     """
     A generic object to represent players, enemies, items, etc.
     """
 
-    def __init__(self, x, y, char, color, name, blocks=False, type=None, ai=None, item=None, inventory=None):
+    def __init__(self, x, y, char, color, name, blocks=False, type=None, ai=None, item=None, inventory=None, render=RenderOrder.ITEM):
         self.x = x
         self.y = y
         self.char = char
@@ -25,6 +27,7 @@ class Entity:
         self.ai = ai
         self.type = type
         self.item = item
+        self.render = render
         self.inventory = inventory
         if self.ai:
             self.ai.owner = self
@@ -64,7 +67,7 @@ class Entity:
             if not (game_map.is_blocked(self.x - dx, self.y - dy) or
                     get_blocking_entities_at_location(entities, self.x - dx, self.y - dy)):
                 self.move(-dx, -dy)
-            #elif not (game_map.is_blocked(self.x - dx, self.y - dy) or
+            # elif not (game_map.is_blocked(self.x - dx, self.y - dy) or
             #        get_blocking_entities_at_location(entities, self.x - dx, self.y - dy)):
             #    self.move(-dx, -dy)
         else:
@@ -72,13 +75,13 @@ class Entity:
                     get_blocking_entities_at_location(entities, self.x - 1, self.y)):
                 self.move(-1, 0)
             elif not (game_map.is_blocked(self.x+1, self.y) or
-                    get_blocking_entities_at_location(entities, self.x + 1, self.y)):
+                      get_blocking_entities_at_location(entities, self.x + 1, self.y)):
                 self.move(1, 0)
             elif not (game_map.is_blocked(self.x, self.y-1) or
-                    get_blocking_entities_at_location(entities, self.x, self.y-1)):
+                      get_blocking_entities_at_location(entities, self.x, self.y-1)):
                 self.move(0, -1)
             elif not (game_map.is_blocked(self.x, self.y+1) or
-                    get_blocking_entities_at_location(entities, self.x, self.y+1)):
+                      get_blocking_entities_at_location(entities, self.x, self.y+1)):
                 self.move(0, 1)
 
     def distance_to(self, other):
