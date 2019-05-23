@@ -14,7 +14,7 @@ class FollowMonster:
             if monster.distance_to(target) >= 2:
                 monster.move_astar(target, entities, game_map)
             monster.type.sound.mul=.1*(FOV_RADIUS-monster.distance_to(target))/FOV_RADIUS
-            if not monster.type.sound.isOutputting():
+            if not monster.type.sound.isOutputting() and not monster.type.mute:
                 monster.type.sound.out()
         else:
             if monster.type.sound.isOutputting():
@@ -31,7 +31,7 @@ class FleeMonster:
         if libtcod.map_is_in_fov(fov.map, monster.x, monster.y):
             monster.move_away(target, entities, game_map)
             monster.type.sound.mul=.1*(FOV_RADIUS-monster.distance_to(target))/FOV_RADIUS
-            if not monster.type.sound.isOutputting():
+            if not monster.type.sound.isOutputting() and not monster.type.mute:
                 monster.type.sound.out()
         else:
             if monster.type.sound.isOutputting():
@@ -47,7 +47,7 @@ class ImmobilePlant:
         monster = self.owner
         if libtcod.map_is_in_fov(fov.map, monster.x, monster.y):
             monster.type.sound.mul=.1*(FOV_RADIUS-monster.distance_to(target))/FOV_RADIUS
-            if not monster.type.sound.isOutputting():
+            if not monster.type.sound.isOutputting() and not monster.type.mute:
                 monster.type.sound.out()
         else:
             if monster.type.sound.isOutputting():

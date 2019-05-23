@@ -8,9 +8,10 @@ from components.monster import Monster
 from components.plant import Plant
 from components.ai import FollowMonster, FleeMonster, ImmobilePlant
 from components.item import Item
-from item_functions import add_osc
+from item_functions import add_osc, cast_mute, cast_mute_balls
 from constants import MAX_MONSTERS_ROOM, MAX_ROOMS, MAX_ITEMS_ROOM, ROOM_MIN_SIZE, ROOM_MAX_SIZE, MAP_HEIGHT, MAP_WIDTH, MAX_PLANTS_ROOM
 from render_functions import RenderOrder
+from game_messages import Message
 
 
 class GameMap:
@@ -107,9 +108,22 @@ class GameMap:
             x = randint(room.x1 + 1, room.x2 - 1)
             y = randint(room.y1 + 1, room.y2 - 1)
             if not any([entity for entity in entities if entity.x == x and entity.y == y]):
-                item_component = Item(use_function=add_osc, freq=1500)
-                item = Entity(x, y, '!', libtcod.violet,
-                              'Oscia Potion', item=item_component)
+                item_chance = randint(0, 100)
+                if item_chance < 10:
+                    item_component = Item(use_function=add_osc, freq=1500)
+                    item = Entity(x, y, '!', libtcod.violet,
+                                  'Oscia potion', item=item_component)
+                elif item_chance < 90:
+                    item_component = Item(use_function=cast_mute_balls, targeting=True, targeting_message=Message(
+                        'Left-click a target tile for the mute balls, or right-click to cancel.', libtcod.light_cyan),
+                        radius=3)
+                    item = Entity(x, y, '#', libtcod.red, 'Mute balls Scroll',
+                                  item=item_component)
+                else:
+                    item_component = Item(
+                        use_function=cast_mute, maximum_range=3)
+                    item = Entity(x, y, '#', libtcod.gold,
+                                  'Mute scroll', item=item_component)
                 entities.append(item)
         for i in range(number_of_plants):
             x = randint(room.x1 + 1, room.x2 - 1)

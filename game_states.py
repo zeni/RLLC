@@ -8,3 +8,4 @@ class GameStates(Enum):
     INTRO_SCREEN = 4
     CLASS_CHOICE = 5
     EXIT = 6
+    TARGETING = 7

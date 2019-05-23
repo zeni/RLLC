@@ -1,6 +1,6 @@
 import tcod
 import tcod.event
-from input_handlers import handle_keys
+from input_handlers import handle_keys, handle_mouse
 from entity import Entity, get_blocking_entities_at_location
 from map_objects.fov import FOV
 from render_functions import clear_all, render_all, RenderOrder
@@ -24,7 +24,7 @@ def start_screen(con, game_state, key, title):
     tcod.console_blit(con, 0, 0, con.width, con.height, 0, 0, 0)
     # show options and wait for the player's choice
     options = ['Play a new game', 'Quit']
-    main_menu(options, 75)
+    main_menu(options, 75, "Play")
     action = handle_keys(key, game_state)
     choice = action.get('choice')
     gamestate = game_state
@@ -44,7 +44,7 @@ def class_choice(con, game_state, key, title):
     tcod.console_blit(con, 0, 0, con.width, con.height, 0, 0, 0)
     # show options and wait for the player's choice
     options = ['Noiseur', 'Quit']
-    main_menu(options, 75)
+    main_menu(options, 75, "Choose class")
     action = handle_keys(key, game_state)
     choice = action.get('choice')
     gamestate = game_state
@@ -107,6 +107,7 @@ def main():
             # compute fov
             fov.recompute_fov(player)
             # main loop
+            targeting_item = None
             while not tcod.console_is_window_closed():
                 # get events
                 tcod.sys_check_for_event(
@@ -118,53 +119,59 @@ def main():
                 clear_all(con, panels, entities, camera)
                 # get action from keyboard
                 action = handle_keys(key, game_state)
+                mouse_action = handle_mouse(mouse)
                 move = action.get("move")
                 pickup = action.get('pickup')
                 show_inventory = action.get('show_inventory')
+                if show_inventory:
+                    previous_game_state = game_state
+                    game_state=GameStates.SHOW_INVENTORY
                 inventory_index = action.get('inventory_index')
                 exit = action.get("exit")
                 fullscreen = action.get("fullscreen")
+                left_click = mouse_action.get('left_click')
+                right_click = mouse_action.get('right_click')
                 # deal with actions
                 player_turn_results = []
-                if move and game_state == GameStates.PLAYERS_TURN:
-                    dx, dy = move
-                    destination_x = player.x + dx
-                    destination_y = player.y + dy
-                    if not game_map.is_blocked(destination_x, destination_y):
-                        target = get_blocking_entities_at_location(
-                            entities, destination_x, destination_y)
-                        if not target:
-                            player.move(dx, dy)
-                            fov.recompute = True
-                    game_state = GameStates.ENEMY_TURN
-                elif pickup and game_state == GameStates.PLAYERS_TURN:
-                    for entity in entities:
-                        if entity.item and entity.x == player.x and entity.y == player.y:
-                            pickup_results = player.inventory.add_item(entity)
-                            player_turn_results.extend(pickup_results)
-                            break
-                    else:
-                        message_log.add_message(
-                            Message('There is nothing here to pick up.', tcod.yellow))
-                if show_inventory:
-                    previous_game_state = game_state
-                    game_state = GameStates.SHOW_INVENTORY
-                if inventory_index is not None and inventory_index < len(player.inventory.items):
-                    item = player.inventory.items[inventory_index]
-                    player_turn_results.extend(player.inventory.use(item))
-                if exit:
-                    if game_state == GameStates.SHOW_INVENTORY:
-                        game_state = previous_game_state
-                    else:
-                        pyo_server.stop()
-                        return True
-                if fullscreen:
-                    tcod.console_set_fullscreen(
-                        not tcod.console_is_fullscreen())
+                if game_state == GameStates.PLAYERS_TURN:
+                    if move:
+                        dx, dy = move
+                        destination_x = player.x + dx
+                        destination_y = player.y + dy
+                        if not game_map.is_blocked(destination_x, destination_y):
+                            target = get_blocking_entities_at_location(
+                                entities, destination_x, destination_y)
+                            if not target:
+                                player.move(dx, dy)
+                                fov.recompute = True
+                        game_state = GameStates.ENEMY_TURN
+                    elif pickup :
+                        for entity in entities:
+                            if entity.item and entity.x == player.x and entity.y == player.y:
+                                pickup_results = player.inventory.add_item(entity)
+                                player_turn_results.extend(pickup_results)
+                                break
+                        else:
+                            message_log.add_message(
+                                Message('There is nothing here to pick up.', tcod.yellow))
+                if game_state == GameStates.SHOW_INVENTORY:
+                    if inventory_index is not None and inventory_index < len(player.inventory.items):
+                        item = player.inventory.items[inventory_index]
+                        player_turn_results.extend(player.inventory.use(item, entities=entities, fov_map=fov.map))
+                if game_state == GameStates.TARGETING:
+                    if left_click:
+                        target_x, target_y = left_click
+                        item_use_results = player.inventory.use(targeting_item, entities=entities, fov_map=fov.map,
+                                                                target_x=int(target_x+camera.x), target_y=int(target_y+camera.y))
+                        player_turn_results.extend(item_use_results)
+                    elif right_click:
+                        player_turn_results.append({'targeting_cancelled': True})
                 for player_turn_result in player_turn_results:
                     message = player_turn_result.get('message')
                     item_added = player_turn_result.get('item_added')
                     item_consumed = player_turn_result.get('consumed')
+                    targeting = player_turn_result.get('targeting')
+                    targeting_cancelled = player_turn_result.get('targeting_cancelled')
                     if message:
                         message_log.add_message(message)
                     if item_added:
@@ -172,6 +179,14 @@ def main():
                         game_state = GameStates.ENEMY_TURN
                     if item_consumed:
                         game_state = GameStates.ENEMY_TURN
+                    if targeting:
+                        previous_game_state = GameStates.PLAYERS_TURN
+                        game_state = GameStates.TARGETING
+                        targeting_item = targeting
+                        message_log.add_message(targeting_item.item.targeting_message)
+                    if targeting_cancelled:
+                        game_state = previous_game_state
+                        message_log.add_message(Message('Targeting cancelled'))
                 if game_state == GameStates.ENEMY_TURN:
                     for entity in entities:
                         if entity.ai:
@@ -183,6 +198,17 @@ def main():
                                     message_log.add_message(message)
                     else:
                         game_state = GameStates.PLAYERS_TURN
+                if exit:
+                    if game_state == GameStates.SHOW_INVENTORY:
+                        game_state = previous_game_state
+                    elif game_state == GameStates.TARGETING:
+                        player_turn_results.append({'targeting_cancelled': True})
+                    else:
+                        pyo_server.stop()
+                        return True
+                if fullscreen:
+                    tcod.console_set_fullscreen(
+                        not tcod.console_is_fullscreen())
 
 
 if __name__ == "__main__":
